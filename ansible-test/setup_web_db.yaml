@@ -58,21 +58,31 @@
     # Task 4: Creating DB application user with secure credentials fetched from Vault
     - name: Create database user with secure credentials
       community.postgresql.postgresql_user:
-        db: my_company_db
         name: "{{ vault_db_user }}"
         password: "{{ vault_db_password }}"
-        privileges: "ALL" # FIX: Changed from 'priv' to 'privileges'
+        state: present
       become: yes
       become_user: postgres
 
-    # Task 5: Copying local standalone SQL file onto the remote database server
+    # Task 5: Granting permissions to the user on the database (New separate module)
+    - name: Grant ALL privileges on database to the application user
+      community.postgresql.postgresql_privs:
+        db: my_company_db
+        role: "{{ vault_db_user }}"
+        type: database
+        privs: ALL
+        state: present
+      become: yes
+      become_user: postgres
+
+    # Task 6: Copying local standalone SQL file onto the remote database server
     - name: Transfer init_db.sql file to target server
       copy:
         src: init_db.sql
         dest: /tmp/init_db.sql
         mode: '0644'
 
-    # Task 6: Executing raw SQL statements from the transferred file against target DB
+    # Task 7: Executing raw SQL statements from the transferred file against target DB
     - name: Initialize tables inside database from external SQL file
       community.postgresql.postgresql_query:
         db: my_company_db
