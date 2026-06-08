@@ -84,9 +84,8 @@
 
     # Task 7: Executing raw SQL statements from the transferred file against target DB
     - name: Initialize tables inside database from external SQL file
-      community.postgresql.postgresql_query:
+      community.postgresql.postgresql_script:
         db: my_company_db
-        path_to_script: /tmp/init_db.sql
+        path: /tmp/init_db.sql # FIX: Changed module to 'postgresql_script' and parameter to 'path'
       become: yes
       become_user: postgres
-
