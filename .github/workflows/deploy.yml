@@ -1,0 +1,37 @@
+name: Ansible Auto-Deploy
+
+# Trigger: run this workflow on every push to the main branch
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    # Run the workflow locally on your ThinkPad self-hosted runner
+    runs-on: self-hosted
+
+    # Set the default working directory for all execution steps
+    defaults:
+      run:
+        working-directory: ./ansible-test # Path to your subfolder inside Git
+
+    steps:
+    # Step 1: Download code from the Git repository onto the runner machine
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    # Step 2: Install or update Ansible inside the local Linux environment
+    - name: Set up Python and Ansible
+      run: |
+        sudo apt update
+        sudo apt install ansible -y
+
+    # Step 3: Extract the master password from GitHub Secrets into a temp file
+    - name: Create Vault Password File
+      run: |
+        echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass.txt
+
+    # Step 4: Execute the Ansible Playbook using the Vault password file
+    - name: Run Ansible Playbook
+      run: |
+        ansible-playbook setup_web_db.yaml -i hosts.ini --vault-password-file .vault_pass.txt

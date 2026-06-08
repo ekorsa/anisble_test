@@ -1,14 +1,16 @@
 ---
-- name: Настройка веб-сервера
+- name: Configure Web Server
   hosts: web
   tasks:
-    - name: Установка веб-сервера Nginx
+    # Task 1: Installing Nginx on the target machine
+    - name: Install Nginx web server
       apt:
         name: nginx
         state: present
         update_cache: yes
 
-    - name: Создание кастомной главной страницы
+    # Task 2: Uploading website files from local project folder
+    - name: Copy custom main page source files
       copy:
         src: ./web_sup_project/
         dest: /var/www/html/
@@ -16,24 +18,65 @@
         group: www-data
         mode: '0644'
 
-    - name: Проверка, что Nginx запущен и работает
+    # Task 3: Guarantee that Nginx starts automatically
+    - name: Check that Nginx is running and enabled
       service:
         name: nginx
         state: started
         enabled: yes
 
-- name: Настройка сервера базы данных
+- name: Configure Database Server
   hosts: db
+  # Loading secure secrets from Ansible Vault variables
+  vars_files:
+    - vault.yml
+
   tasks:
-    - name: Установка СУБД PostgreSQL
+    # Task 1: Installing database components and Python integration engine
+    - name: Install СУБД PostgreSQL and python dependencies
       apt:
-        name: postgresql
+        name:
+          - postgresql
+          - python3-psycopg2
         state: present
         update_cache: yes
 
-    - name: Проверка, что PostgreSQL запущен и работает
+    # Task 2: Guarantee that PostgreSQL engine starts automatically
+    - name: Check that PostgreSQL is running and enabled
       service:
         name: postgresql
         state: started
         enabled: yes
+
+    # Task 3: Creating an empty database using system administrative privileges
+    - name: Create empty database my_company_db
+      community.postgresql.postgresql_db:
+        name: my_company_db
+      become: yes
+      become_user: postgres
+
+    # Task 4: Creating DB application user with secure credentials fetched from Vault
+    - name: Create database user with secure credentials
+      community.postgresql.postgresql_user:
+        db: my_company_db
+        name: "{{ vault_db_user }}"
+        password: "{{ vault_db_password }}"
+        priv: "ALL"
+      become: yes
+      become_user: postgres
+
+    # Task 5: Copying local standalone SQL file onto the remote database server
+    - name: Transfer init_db.sql file to target server
+      copy:
+        src: init_db.sql
+        dest: /tmp/init_db.sql
+        mode: '0644'
+
+    # Task 6: Executing raw SQL statements from the transferred file against target DB
+    - name: Initialize tables inside database from external SQL file
+      community.postgresql.postgresql_query:
+        db: my_company_db
+        path_to_script: /tmp/init_db.sql
+      become: yes
+      become_user: postgres
 
